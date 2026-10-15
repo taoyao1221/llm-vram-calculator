@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Share2, Copy, Check, ExternalLink, Link2 } from "lucide-react";
 import { generateShareUrl, copyShareUrl } from "@/lib/url-config";
 import type { CalcConfig } from "@/components/config-panel";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 
 interface ShareConfigButtonProps {
@@ -21,6 +22,7 @@ interface ShareConfigButtonProps {
 }
 
 export function ShareConfigButton({ config }: ShareConfigButtonProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -35,10 +37,10 @@ export function ShareConfigButton({ config }: ShareConfigButtonProps) {
     const success = await copyShareUrl(config);
     if (success) {
       setCopied(true);
-      toast.success("Configuration URL copied to clipboard!");
+      toast.success(t("share.toastSuccess"));
       setTimeout(() => setCopied(false), 2000);
     } else {
-      toast.error("Failed to copy URL. Please try again.");
+      toast.error(t("share.toastError"));
     }
   };
 
@@ -56,7 +58,7 @@ export function ShareConfigButton({ config }: ShareConfigButtonProps) {
         onClick={handleShare}
       >
         <Share2 className="w-3.5 h-3.5" />
-        Share Config
+        {t("share.button")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -64,11 +66,10 @@ export function ShareConfigButton({ config }: ShareConfigButtonProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Share2 className="w-4 h-4" />
-              Share Configuration
+              {t("share.title")}
             </DialogTitle>
             <DialogDescription className="text-xs leading-relaxed">
-              Copy this URL to share your current configuration with others.
-              The URL contains all your settings (GPU, model, quantization, context length, etc.).
+              {t("share.description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -77,27 +78,27 @@ export function ShareConfigButton({ config }: ShareConfigButtonProps) {
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-muted-foreground">GPU:</span>{" "}
+                  <span className="text-muted-foreground">{t("share.gpu")}</span>{" "}
                   <span className="font-medium text-foreground">{config.gpu.name}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Model:</span>{" "}
+                  <span className="text-muted-foreground">{t("share.model")}</span>{" "}
                   <span className="font-medium text-foreground">{config.model.name}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Quantization:</span>{" "}
+                  <span className="text-muted-foreground">{t("share.quantization")}</span>{" "}
                   <span className="font-medium text-foreground">{config.quant.label}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Context:</span>{" "}
-                  <span className="font-medium text-foreground">{config.contextLen.toLocaleString()} tokens</span>
+                  <span className="text-muted-foreground">{t("share.context")}</span>{" "}
+                  <span className="font-medium text-foreground">{config.contextLen.toLocaleString()}{t("config.unitTokens")}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Users:</span>{" "}
+                  <span className="text-muted-foreground">{t("share.users")}</span>{" "}
                   <span className="font-medium text-foreground">{config.concurrentUsers}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Est. VRAM:</span>{" "}
+                  <span className="text-muted-foreground">{t("share.estVram")}</span>{" "}
                   <span className="font-medium text-emerald-400">{/* VRAM calculated dynamically */}</span>
                 </div>
               </div>
@@ -105,7 +106,7 @@ export function ShareConfigButton({ config }: ShareConfigButtonProps) {
 
             {/* URL input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-muted-foreground">Shareable URL</label>
+              <label className="text-xs text-muted-foreground">{t("share.shareableUrl")}</label>
               <div className="flex gap-2">
                 <Input
                   value={shareUrl}
@@ -135,7 +136,7 @@ export function ShareConfigButton({ config }: ShareConfigButtonProps) {
               className="gap-1.5"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              Open in New Tab
+              {t("share.openInNewTab")}
             </Button>
             <Button
               onClick={handleCopy}
@@ -144,12 +145,12 @@ export function ShareConfigButton({ config }: ShareConfigButtonProps) {
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5" />
-                  Copied!
+                  {t("share.copied")}
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5" />
-                  Copy URL
+                  {t("share.copyUrl")}
                 </>
               )}
             </Button>

@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, GitCompare, ChevronRight, Cpu, Github } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useI18n } from "@/lib/i18n";
 
 const DEFAULT_CONFIG: CalcConfig = {
   gpu: GPU_LIST.find((g) => g.id === "rtx4090")!,
@@ -32,6 +34,7 @@ const DEFAULT_CONFIG: CalcConfig = {
 export default function Page() {
   const [config, setConfig] = useState<CalcConfig>(DEFAULT_CONFIG);
   const [activeTab, setActiveTab] = useState("calculator");
+  const { t, tn } = useI18n();
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
@@ -44,7 +47,7 @@ export default function Page() {
             </div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm text-foreground tracking-tight">
-                LLM VRAM Calculator
+                {t("header.appTitle")}
               </span>
               <Badge
                 variant="outline"
@@ -64,11 +67,12 @@ export default function Page() {
               {config.gpu.name}
             </span>
             <span className="px-2 py-1 rounded bg-muted font-mono text-[10px] hidden sm:inline">
-              {config.numGpus}× GPU
+              {tn("common.gpuCount", config.numGpus)}
             </span>
             <span className="px-2 py-1 rounded bg-muted font-mono text-[10px] hidden sm:inline">
               {config.quant.label}
             </span>
+            <LanguageToggle />
             <ThemeToggle />
           </div>
         </div>
@@ -80,20 +84,20 @@ export default function Page() {
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div>
               <h1 className="text-xl font-bold text-foreground text-balance">
-                GPU Memory & Performance Estimator
+                {t("header.heroTitle")}
               </h1>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-xl">
-                Estimate VRAM, TTFT, and tok/s for 100+ LLMs (HF + Ollama) across 70+ GPUs including H20, L20, RTX Pro 6000D Blackwell. Correct MoE formulas, up to 4096 concurrent users. Press Play to simulate inference.
+                {t("header.heroDesc")}
               </p>
             </div>
             <TabsList className="bg-muted border border-border">
               <TabsTrigger value="calculator" className="gap-1.5 text-xs">
                 <Calculator className="w-3.5 h-3.5" />
-                Calculator
+                {t("header.tabCalculator")}
               </TabsTrigger>
               <TabsTrigger value="compare" className="gap-1.5 text-xs">
                 <GitCompare className="w-3.5 h-3.5" />
-                Compare GPUs
+                {t("header.tabCompare")}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -105,7 +109,7 @@ export default function Page() {
                 <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Configuration
+                    {t("header.configuration")}
                   </p>
                 </div>
                 <div className="flex-1 overflow-y-auto">
@@ -119,7 +123,7 @@ export default function Page() {
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      Estimates
+                      {t("header.estimates")}
                     </p>
                   </div>
                   <Button
@@ -128,7 +132,7 @@ export default function Page() {
                     className="text-xs h-7 text-muted-foreground hover:text-foreground"
                     onClick={() => setConfig(DEFAULT_CONFIG)}
                   >
-                    Reset to defaults
+                    {t("header.resetDefaults")}
                   </Button>
                 </div>
                 <div className="flex-1 overflow-y-auto">
@@ -147,7 +151,7 @@ export default function Page() {
       {/* ── Footer ───────────────────────────────────────────── */}
       <footer className="border-t border-border py-4 px-6 flex flex-col items-center gap-2">
         <p className="text-[11px] text-muted-foreground text-center max-w-2xl">
-          Estimates are physics-based approximations. Real-world performance varies by framework, driver version, and system memory bandwidth. Validated against vLLM, llama.cpp, and Ollama benchmarks.
+          {t("header.footerDisclaimer")}
         </p>
         <a
           href="https://github.com/Shun-Calvin/llm-vram-calculator"

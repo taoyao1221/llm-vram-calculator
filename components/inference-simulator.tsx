@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Square, RotateCcw, Zap, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { translations } from "@/lib/i18n/messages";
 
 interface InferenceSimulatorProps {
   ttftMs: number;
@@ -16,21 +18,12 @@ interface InferenceSimulatorProps {
 
 type SimPhase = "idle" | "prefill" | "generating" | "done";
 
-const SAMPLE_OUTPUTS: string[] = [
-  "Large language models require significant GPU memory for deployment. The memory requirements scale with both the number of parameters and the precision used during inference. For a 7B parameter model in BF16, you need approximately 14 GB of VRAM just for the weights, before accounting for KV cache, activations, and framework overhead. Quantization reduces this by storing weights at lower precision. For example, Q4_K_M uses 4.5 bits per weight, cutting memory by about 3.5x compared to FP16. This allows models that would normally require multiple GPUs to run on a single consumer GPU. The key trade-off is between model quality and memory usage. Lower precision quantization introduces more noise into the weights, which can degrade output quality for complex tasks like reasoning and mathematics. For simple tasks like text completion or summarization, aggressive quantization often works well with minimal quality loss.",
-  "Mixture-of-Experts architectures offer a compelling trade-off: by activating only a subset of experts per token, MoE models can achieve the quality of much larger dense models while keeping compute and memory bandwidth costs proportional to the active parameter count. In an MoE model with 256 total experts and 8 active per token, only about 3 percent of the total parameters are computed for each forward pass, yet all expert weights must remain in GPU memory. This is why a model like DeepSeek V3 with 685 billion total parameters can achieve inference speeds comparable to a 37 billion parameter dense model. The KV cache for MoE models is also independent of expert count since it depends only on the attention layers, not the feed-forward expert layers. Expert offloading can further reduce VRAM usage by keeping only frequently used experts on the GPU while offloading others to CPU memory.",
-  "When deploying LLMs in production, the token generation rate is fundamentally memory-bandwidth bound. Each decode step requires streaming the full model weights from HBM to compute units regardless of how powerful GPU tensor cores are. This means that memory bandwidth is usually the primary bottleneck for inference throughput. For a model with active parameters A and quantization of B bytes per parameter, each generated token requires reading A times B bytes from memory. With a memory bandwidth of 1000 GB per second, a 70B parameter model at 4-bit quantization can generate approximately 1000 divided by 70 times 0.5 tokens per second, or around 28 tokens per second. Using tensor parallelism across multiple GPUs increases effective bandwidth proportionally but adds communication overhead.",
-  "Context window size has a quadratic relationship with attention compute but only a linear relationship with KV cache memory. A 128K context window requires 32 times more KV cache memory than a 4K window, making quantized KV cache essential for long-context deployments. The KV cache stores key and value tensors for every token in the sequence across all attention layers. With Grouped Query Attention using 8 KV heads instead of 32 query heads, the KV cache is 4 times smaller than standard multi-head attention. For a 70B model with 80 layers processing 128K context, the KV cache alone can exceed 50 GB of VRAM per user. Paged attention algorithms used in vLLM and similar frameworks reduce memory fragmentation by dynamically allocating KV cache blocks, saving approximately 20 to 40 percent of KV cache memory.",
-  "With tensor parallelism across 8 GPUs, inference throughput scales near-linearly for memory-bandwidth-bound workloads, while TTFT benefits from the combined TFLOPS though inter-GPU communication overhead becomes the bottleneck at higher GPU counts. Each GPU holds a shard of the model weights and computes its portion of each transformer layer. For the forward pass, GPUs must communicate via NVLink or Infinity Fabric to synchronize attention outputs and feed-forward network results. The communication overhead scales with model dimension and sequence length, and can dominate at very large GPU counts. For optimal efficiency, models should be large enough to justify the communication cost. A rule of thumb is that each GPU should hold at least 5 to 10 billion parameters worth of sharded weights.",
-  "Speculative decoding is a technique to accelerate text generation by using a small draft model to predict multiple tokens ahead, which are then verified in parallel by the main model. This works because the draft model runs much faster due to its smaller size, while the verification pass by the main model can process multiple tokens simultaneously. The typical speedup is 1.5 to 3 times depending on the draft model size, the acceptance rate of drafted tokens, and the number of draft tokens per step. Multi-Token Prediction or MTP takes this further by building the speculative heads directly into the main model, eliminating the need for a separate draft model. DeepSeek V3 and R1 series support MTP natively, achieving approximately 1.8 times throughput improvement with only a tiny VRAM overhead for the additional prediction heads.",
-];
-
-function pickSampleOutput(seed: number): string {
+function pickSampleOutput(samples: string[], seed: number): string {
   const count = 5;
-  const idx = seed % SAMPLE_OUTPUTS.length;
+  const idx = seed % samples.length;
   const parts: string[] = [];
   for (let i = 0; i < count; i++) {
-    parts.push(SAMPLE_OUTPUTS[(idx + i) % SAMPLE_OUTPUTS.length]);
+    parts.push(samples[(idx + i) % samples.length]);
   }
   return parts.join(" ");
 }
@@ -43,6 +36,11 @@ export function InferenceSimulator({
   promptTokens,
   className,
 }: InferenceSimulatorProps) {
+  const { t, tn, locale } = useI18n();
+  const samples =
+    (translations[locale]?.sim?.samples as string[] | undefined) ??
+    (translations.en.sim.samples as string[]);
+
   const [phase, setPhase] = useState<SimPhase>("idle");
   const [prefillProgress, setPrefillProgress] = useState(0); // 0-100
   const [displayedText, setDisplayedText] = useState("");
@@ -53,7 +51,9 @@ export function InferenceSimulator({
   const startTimeRef = useRef<number>(0);
   const prefillRafRef = useRef<number | null>(null);
   const genIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sampleText = useRef(pickSampleOutput(Math.floor(Math.random() * SAMPLE_OUTPUTS.length)));
+  const samplesRef = useRef<string[]>(samples);
+  samplesRef.current = samples;
+  const sampleText = useRef<string>("");
 
   const cleanup = useCallback(() => {
     if (prefillRafRef.current) cancelAnimationFrame(prefillRafRef.current);
@@ -70,7 +70,10 @@ export function InferenceSimulator({
     setGeneratedTokens(0);
     setElapsedMs(0);
     setTtftActual(null);
-    sampleText.current = pickSampleOutput(Math.floor(Math.random() * SAMPLE_OUTPUTS.length));
+    sampleText.current = pickSampleOutput(
+      samplesRef.current,
+      Math.floor(Math.random() * samplesRef.current.length)
+    );
   }, [cleanup]);
 
   // Cap simulation TTFT: we animate prefill at real-time for small values,
@@ -137,6 +140,9 @@ export function InferenceSimulator({
       ? generatedTokens / ((elapsedMs - ttftActual) / 1000)
       : null;
 
+  const ttftLabel =
+    simTtftMs < 1000 ? `${simTtftMs.toFixed(0)} ms` : `${(simTtftMs / 1000).toFixed(2)} s`;
+
   return (
     <div className={cn("rounded-lg border border-border bg-card overflow-hidden", className)}>
       {/* Header */}
@@ -152,7 +158,7 @@ export function InferenceSimulator({
             )}
           />
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Inference Simulation
+            {t("sim.title")}
           </p>
           <span className="text-[10px] text-muted-foreground/60 font-normal hidden sm:block">
             — {modelName}
@@ -165,7 +171,7 @@ export function InferenceSimulator({
               size="icon"
               className="h-6 w-6"
               onClick={reset}
-              title="Reset"
+              title={t("sim.reset")}
             >
               <RotateCcw className="w-3 h-3" />
             </Button>
@@ -177,7 +183,7 @@ export function InferenceSimulator({
               onClick={start}
             >
               <Play className="w-3 h-3" />
-              {phase === "done" ? "Replay" : "Play"}
+              {phase === "done" ? t("sim.replay") : t("sim.play")}
             </Button>
           ) : (
             <Button
@@ -187,7 +193,7 @@ export function InferenceSimulator({
               onClick={reset}
             >
               <Square className="w-3 h-3" />
-              Stop
+              {t("sim.stop")}
             </Button>
           )}
         </div>
@@ -197,25 +203,25 @@ export function InferenceSimulator({
       <div className="grid grid-cols-4 divide-x divide-border border-b border-border">
         {[
           {
-            label: "TTFT (est.)",
+            label: t("sim.ttftEst"),
             value: ttftMs < 1000 ? `${ttftMs.toFixed(0)} ms` : `${(ttftMs / 1000).toFixed(2)} s`,
             icon: Clock,
             active: phase === "prefill",
           },
           {
-            label: "Tok/s (est.)",
+            label: t("sim.tpsEst"),
             value: `${tokensPerSecond.toFixed(1)}`,
             icon: Zap,
             active: phase === "generating",
           },
           {
-            label: "Elapsed",
+            label: t("sim.elapsed"),
             value: totalElapsedS > 0 ? `${totalElapsedS.toFixed(2)} s` : "—",
             icon: null,
             active: phase !== "idle" && phase !== "done",
           },
           {
-            label: concurrentUsers > 1 ? `${concurrentUsers} users` : "Generated",
+            label: concurrentUsers > 1 ? tn("common.userCount", concurrentUsers) : t("sim.generated"),
             value: generatedTokens > 0 ? `${generatedTokens} tok` : "—",
             icon: null,
             active: phase === "generating",
@@ -250,13 +256,11 @@ export function InferenceSimulator({
           <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-4">
             <Play className="w-8 h-8 text-muted-foreground/30" />
             <p className="text-sm text-muted-foreground">
-              Press Play to simulate inference
+              {t("sim.pressPlay")}
             </p>
             <p className="text-xs text-muted-foreground/60">
-              Prefill: {simTtftMs < 1000 ? `${simTtftMs.toFixed(0)} ms` : `${(simTtftMs / 1000).toFixed(2)} s`} animation
-              {" · "}
-              Decode: ~{simTps.toFixed(0)} tok/s
-              {simTtftMs < ttftMs ? " (capped for display)" : ""}
+              {t("sim.prefillInfo", { ttft: ttftLabel, tps: simTps.toFixed(0) })}
+              {simTtftMs < ttftMs ? t("sim.capped") : ""}
             </p>
           </div>
         )}
@@ -266,7 +270,7 @@ export function InferenceSimulator({
             <div className="flex items-center justify-between text-xs">
               <span className="text-amber-400 font-semibold flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                Prefilling {promptTokens.toLocaleString()} prompt tokens...
+                {t("sim.prefilling", { n: promptTokens.toLocaleString() })}
               </span>
               <span className="font-mono text-muted-foreground">
                 {prefillProgress.toFixed(1)}%
@@ -290,8 +294,8 @@ export function InferenceSimulator({
               ))}
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Compute-bound prefill pass — processing all prompt tokens in parallel
-              {ttftMs > 1000 && " (simulated at 4s max; real TTFT shown above)"}
+              {t("sim.computeBound")}
+              {ttftMs > 1000 && t("sim.cappedNote")}
             </p>
           </div>
         )}
@@ -301,11 +305,13 @@ export function InferenceSimulator({
             {ttftActual !== null && (
               <div className="flex items-center gap-2 text-[10px]">
                 <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono border border-amber-500/20">
-                  TTFT: {ttftActual < 1000 ? `${ttftActual.toFixed(0)} ms` : `${(ttftActual / 1000).toFixed(2)} s`} simulated
+                  {t("sim.ttftSimulated", {
+                    v: ttftActual < 1000 ? `${ttftActual.toFixed(0)} ms` : `${(ttftActual / 1000).toFixed(2)} s`,
+                  })}
                 </span>
                 {liveGenRate !== null && (
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono border border-emerald-500/20">
-                    {liveGenRate.toFixed(1)} tok/s live
+                    {t("sim.liveRate", { v: liveGenRate.toFixed(1) })}
                   </span>
                 )}
               </div>
@@ -321,14 +327,16 @@ export function InferenceSimulator({
                 <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse align-middle" />
               )}
               {phase === "done" && !displayedText && (
-                <span className="text-muted-foreground italic">Output complete.</span>
+                <span className="text-muted-foreground italic">{t("sim.outputComplete")}</span>
               )}
             </div>
             {phase === "done" && (
               <p className="text-[10px] text-muted-foreground">
-                Simulation complete — {generatedTokens} tokens generated in{" "}
-                {((elapsedMs - (ttftActual ?? 0)) / 1000).toFixed(2)} s decode time
-                {concurrentUsers > 1 && ` (${concurrentUsers} concurrent users share bandwidth)`}
+                {t("sim.simComplete", {
+                  n: generatedTokens,
+                  s: ((elapsedMs - (ttftActual ?? 0)) / 1000).toFixed(2),
+                })}
+                {concurrentUsers > 1 && t("sim.simCompleteUsers", { n: concurrentUsers })}
               </p>
             )}
           </div>

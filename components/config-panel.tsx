@@ -27,6 +27,7 @@ import {
   type ModelSource,
 } from "@/lib/llm-data";
 import { Switch } from "@/components/ui/switch";
+import { useI18n } from "@/lib/i18n";
 import { Info, Cpu, Database, Settings2, LayoutGrid, Layers, Zap } from "lucide-react";
 
 export interface CalcConfig {
@@ -113,6 +114,7 @@ function formatUsers(v: number): string {
 const NUM_GPUS_OPTIONS = [1, 2, 4, 8, 16, 32, 64];
 
 export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
+  const { t, tn } = useI18n();
   const [gpuProvider, setGpuProvider] = useState(config.gpu.provider);
   const [modelFamily, setModelFamily] = useState("all");
   const [modelSource, setModelSource] = useState<"all" | ModelSource>("all");
@@ -135,15 +137,19 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
       filteredGpus.map((g) => ({
         value: g.id,
         label: g.name,
-        sublabel: `${g.vramGb} GB VRAM · ${g.memoryBandwidthGBs} GB/s · ${g.tflops16} TF`,
+        sublabel: t("config.gpuVramSub", {
+          vram: g.vramGb,
+          bw: g.memoryBandwidthGBs,
+          tf: g.tflops16,
+        }),
       })),
-    [filteredGpus]
+    [filteredGpus, t]
   );
 
   const numGpusOptions: SearchableOption[] = NUM_GPUS_OPTIONS.map((n) => ({
     value: String(n),
-    label: `${n}× GPU${n > 1 ? "s" : ""}`,
-    sublabel: `${(config.gpu.vramGb * n).toFixed(0)} GB total VRAM`,
+    label: tn("common.gpuCount", n),
+    sublabel: t("config.totalVramSub", { gb: (config.gpu.vramGb * n).toFixed(0) }),
   }));
 
   // ── Model options ─────────────────────────────────────────────────────────
@@ -158,14 +164,14 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
 
   const modelFamilyOptions: SearchableOption[] = useMemo(
     () => [
-      { value: "all", label: "All Families" },
+      { value: "all", label: t("config.allFamilies") },
       ...MODEL_FAMILIES.map((f) => ({ value: f, label: f })),
     ],
-    []
+    [t]
   );
 
   const modelSourceOptions: SearchableOption[] = [
-    { value: "all", label: "All Sources" },
+    { value: "all", label: t("config.allSources") },
     { value: "huggingface", label: "Hugging Face" },
     { value: "ollama", label: "Ollama" },
   ];
@@ -178,24 +184,32 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           value: m.id,
           label: m.name,
           sublabel: isMoE
-            ? `${m.params}B total · ${m.activeParams}B active · ${m.numExpertsActive}/${m.numExperts} experts`
-            : `${m.params}B params · ${m.layers} layers · ${m.numKvHeads} KV heads`,
+            ? t("config.modelMoeSub", {
+                params: m.params,
+                active: m.activeParams,
+                experts: `${m.numExpertsActive}/${m.numExperts}`,
+              })
+            : t("config.modelDenseSub", {
+                params: m.params,
+                layers: m.layers,
+                kv: m.numKvHeads,
+              }),
           badge: <SourceBadge source={m.source} />,
         };
       }),
-    [filteredModels]
+    [filteredModels, t]
   );
 
   const quantOptions: SearchableOption[] = QUANT_OPTIONS.map((q) => ({
     value: q.id,
     label: q.label,
-    sublabel: `${q.bitsPerWeight} bpw — ${q.qualityNote}`,
+    sublabel: `${q.bitsPerWeight} bpw — ${t(`quant.${q.id}.qualityNote`, undefined, q.qualityNote)}`,
   }));
 
   const kvCacheOptions: SearchableOption[] = KV_CACHE_OPTIONS.map((k) => ({
     value: k.id,
     label: k.label,
-    sublabel: `${k.bitsPerElement} bit — ${k.qualityNote}`,
+    sublabel: `${k.bitsPerElement} bit — ${t(`kv.${k.id}.qualityNote`, undefined, k.qualityNote)}`,
   }));
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -239,25 +253,25 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
     <div className="flex flex-col gap-6 p-5 h-full overflow-y-auto">
       {/* ── GPU Configuration ─────────────────────────────── */}
       <section>
-        <SectionHeader icon={Cpu} title="GPU Configuration" />
+        <SectionHeader icon={Cpu} title={t("config.sectionGpu")} />
         <div className="flex flex-col gap-3">
 
           {/* Provider */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Provider</Label>
+            <Label className="text-xs text-muted-foreground">{t("config.provider")}</Label>
             <SearchableSelect
               options={providerOptions}
               value={gpuProvider}
               onValueChange={handleProviderChange}
-              searchPlaceholder="Search provider..."
+              searchPlaceholder={t("config.searchProvider")}
             />
           </div>
 
           {/* GPU Model */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">GPU Model</Label>
-              <InfoTooltip text="Select GPU to run inference on. VRAM, memory bandwidth, and TFLOPS directly affect all estimates." />
+              <Label className="text-xs text-muted-foreground">{t("config.gpuModel")}</Label>
+              <InfoTooltip text={t("config.tip.gpuModel")} />
             </div>
             <SearchableSelect
               options={gpuOptions}
@@ -266,7 +280,7 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                 const gpu = GPU_LIST.find((g) => g.id === id)!;
                 update({ gpu });
               }}
-              searchPlaceholder="Type to search GPUs..."
+              searchPlaceholder={t("config.searchGpus")}
               maxHeight={300}
             />
           </div>
@@ -274,9 +288,9 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           {/* GPU specs */}
           <div className="grid grid-cols-3 gap-1.5 text-center">
             {[
-              { label: "VRAM", value: `${config.gpu.vramGb} GB` },
-              { label: "Mem BW", value: `${config.gpu.memoryBandwidthGBs} GB/s` },
-              { label: "FP16 TF", value: `${config.gpu.tflops16} TF` },
+              { label: t("config.vram"), value: `${config.gpu.vramGb} GB` },
+              { label: t("config.memBw"), value: `${config.gpu.memoryBandwidthGBs} GB/s` },
+              { label: t("config.fp16Tf"), value: `${config.gpu.tflops16} TF` },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-md bg-muted/50 border border-border p-2">
                 <p className="text-[10px] text-muted-foreground leading-none mb-1">{label}</p>
@@ -288,14 +302,14 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           {/* Number of GPUs */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">Number of GPUs</Label>
-              <InfoTooltip text="Tensor parallelism splits the model across GPUs. More GPUs increase total VRAM and improve throughput at the cost of inter-GPU communication overhead." />
+              <Label className="text-xs text-muted-foreground">{t("config.numGpus")}</Label>
+              <InfoTooltip text={t("config.tip.numGpus")} />
             </div>
             <SearchableSelect
               options={numGpusOptions}
               value={String(config.numGpus)}
               onValueChange={(v) => update({ numGpus: Number(v) })}
-              searchPlaceholder="Select GPU count..."
+              searchPlaceholder={t("config.selectGpuCount")}
             />
           </div>
         </div>
@@ -305,12 +319,12 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
 
       {/* ── Model Configuration ───────────────────────────── */}
       <section>
-        <SectionHeader icon={LayoutGrid} title="Model" />
+        <SectionHeader icon={LayoutGrid} title={t("config.sectionModel")} />
         <div className="flex flex-col gap-3">
           {/* Filters */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">Source</Label>
+              <Label className="text-xs text-muted-foreground">{t("config.source")}</Label>
               <SearchableSelect
                 options={modelSourceOptions}
                 value={modelSource}
@@ -318,12 +332,12 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">Family</Label>
+              <Label className="text-xs text-muted-foreground">{t("config.family")}</Label>
               <SearchableSelect
                 options={modelFamilyOptions}
                 value={modelFamily}
                 onValueChange={handleFamilyChange}
-                searchPlaceholder="Search family..."
+                searchPlaceholder={t("config.searchFamily")}
               />
             </div>
           </div>
@@ -331,9 +345,9 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           {/* Model */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">
-              Model{" "}
+              {t("config.model")}{" "}
               <span className="text-muted-foreground/60 font-normal">
-                ({filteredModels.length} available)
+                {t("config.availableModels", { n: filteredModels.length })}
               </span>
             </Label>
             <SearchableSelect
@@ -343,7 +357,7 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                 const model = MODEL_LIST.find((m) => m.id === id)!;
                 update({ model, contextLen: Math.min(config.contextLen, model.maxContextTokens) });
               }}
-              searchPlaceholder="Type model name..."
+              searchPlaceholder={t("config.typeModelName")}
               maxHeight={360}
             />
           </div>
@@ -352,17 +366,17 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           <div className="grid grid-cols-3 gap-1.5 text-center">
             {[
               {
-                label: isMoE ? "Total Params" : "Params",
+                label: isMoE ? t("config.totalParams") : t("config.params"),
                 value: `${config.model.params}B`,
               },
               {
-                label: isMoE ? "Active Params" : "Layers",
+                label: isMoE ? t("config.activeParams") : t("config.layers"),
                 value: isMoE
                   ? `${config.model.activeParams}B`
                   : `${config.model.layers}`,
               },
               {
-                label: "KV Heads",
+                label: t("config.kvHeads"),
                 value: `${config.model.numKvHeads}`,
               },
             ].map(({ label, value }) => (
@@ -378,10 +392,15 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 flex items-start gap-2">
               <Layers className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                <span className="text-primary font-semibold">Mixture-of-Experts:</span>{" "}
-                {config.model.numExpertsActive} of {config.model.numExperts} experts active per token.
-                VRAM = total params ({config.model.params}B). TTFT and tok/s use active params ({config.model.activeParams}B).
-                {config.model.notes && ` ${config.model.notes}.`}
+                <span className="text-primary font-semibold">{t("config.moeLabel")}</span>{" "}
+                {t("config.moeDesc", {
+                  active: config.model.numExpertsActive,
+                  total: config.model.numExperts,
+                  params: config.model.params,
+                  activeParams: config.model.activeParams,
+                })}
+                {config.model.notes &&
+                  ` ${t(`modelNotes.${config.model.id}`, undefined, config.model.notes)}.`}
               </p>
             </div>
           )}
@@ -392,12 +411,12 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
 
       {/* ── Quantization & KV ─────────────────────────────── */}
       <section>
-        <SectionHeader icon={Database} title="Precision" />
+        <SectionHeader icon={Database} title={t("config.sectionPrecision")} />
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">Weight Quantization</Label>
-              <InfoTooltip text="Quantization reduces bits per weight. Lower bits = less VRAM and faster decode (memory-bound), but potential quality loss. BF16 is the reference quality baseline." />
+              <Label className="text-xs text-muted-foreground">{t("config.weightQuant")}</Label>
+              <InfoTooltip text={t("config.tip.weightQuant")} />
             </div>
             <SearchableSelect
               options={quantOptions}
@@ -406,15 +425,15 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                 const quant = QUANT_OPTIONS.find((q) => q.id === id)!;
                 update({ quant });
               }}
-              searchPlaceholder="Search quantization..."
+              searchPlaceholder={t("config.searchQuant")}
               maxHeight={300}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">KV Cache Precision</Label>
-              <InfoTooltip text="Key-Value cache precision. Lower = less VRAM per token per layer, allowing longer contexts or more concurrent users at the cost of slight quality degradation." />
+              <Label className="text-xs text-muted-foreground">{t("config.kvPrecision")}</Label>
+              <InfoTooltip text={t("config.tip.kvPrecision")} />
             </div>
             <SearchableSelect
               options={kvCacheOptions}
@@ -423,7 +442,7 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                 const kvCache = KV_CACHE_OPTIONS.find((k) => k.id === id)!;
                 update({ kvCache });
               }}
-              searchPlaceholder="Search KV precision..."
+              searchPlaceholder={t("config.searchKv")}
             />
           </div>
         </div>
@@ -433,14 +452,14 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
 
       {/* ── Context & Concurrency ─────────────────────────── */}
       <section>
-        <SectionHeader icon={Settings2} title="Context & Workload" />
+        <SectionHeader icon={Settings2} title={t("config.sectionContext")} />
         <div className="flex flex-col gap-5">
 
           {/* Context length */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">Context Window</Label>
-              <InfoTooltip text="Total tokens (prompt + generation) held in KV cache. Larger contexts consume significantly more VRAM — linear scaling. Click the value badge to type a custom size." />
+              <Label className="text-xs text-muted-foreground">{t("config.contextWindow")}</Label>
+              <InfoTooltip text={t("config.tip.contextWindow")} />
             </div>
             <SliderWithInput
               min={512}
@@ -453,15 +472,15 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
               markers={[512, Math.floor(maxCtx * 0.25), Math.floor(maxCtx * 0.5), maxCtx]}
             />
             <p className="text-[10px] text-muted-foreground">
-              Max for {config.model.name}: {formatContext(config.model.maxContextTokens)}
+              {t("config.maxFor", { model: config.model.name, ctx: formatContext(config.model.maxContextTokens) })}
             </p>
           </div>
 
           {/* Prompt tokens */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">Prompt Length (TTFT)</Label>
-              <InfoTooltip text="Input tokens used to estimate Time-to-First-Token. Prefill is compute-bound and scales with prompt length. Click the badge to type a custom value." />
+              <Label className="text-xs text-muted-foreground">{t("config.promptLength")}</Label>
+              <InfoTooltip text={t("config.tip.promptLength")} />
             </div>
             <SliderWithInput
               min={1}
@@ -478,8 +497,8 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           {/* Concurrent users */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">Concurrent Users</Label>
-              <InfoTooltip text="Number of simultaneous inference requests (batch size). Each user multiplies KV cache VRAM linearly. More users reduce per-user throughput but improve GPU utilization. Click badge to type up to 1024." />
+              <Label className="text-xs text-muted-foreground">{t("config.concurrentUsers")}</Label>
+              <InfoTooltip text={t("config.tip.concurrentUsers")} />
             </div>
             <SliderWithInput
               min={1}
@@ -488,17 +507,18 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
               value={config.concurrentUsers}
               onValueChange={(v) => update({ concurrentUsers: v })}
               format={formatUsers}
-              unit=" users"
+              unit={t("config.unitUsers")}
               markers={[1, 32, 256, 1024, 4096]}
             />
             {config.concurrentUsers > 64 && (
               <div className="rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1.5">
                 <p className="text-[10px] text-amber-400 leading-relaxed">
-                  High concurrency: ensure total KV cache VRAM fits on your hardware. Each additional user adds {" "}
-                  <span className="font-mono font-semibold">
-                    {((2 * config.model.numKvHeads * (config.model.hiddenDim / config.model.numHeads) * config.contextLen * config.model.layers * (config.kvCache.bitsPerElement / 8)) / 1024 ** 3).toFixed(2)} GB
-                  </span>{" "}
-                  of KV cache.
+                  {t("config.highConcurrency", {
+                    gb: (
+                      (2 * config.model.numKvHeads * (config.model.hiddenDim / config.model.numHeads) * config.contextLen * config.model.layers * (config.kvCache.bitsPerElement / 8)) /
+                      1024 ** 3
+                    ).toFixed(2),
+                  })}
                 </p>
               </div>
             )}
@@ -510,18 +530,18 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
 
       {/* ── Advanced Inference Options ────────────────────────── */}
       <section>
-        <SectionHeader icon={Zap} title="Inference Optimizations" />
+        <SectionHeader icon={Zap} title={t("config.sectionInference")} />
         <div className="flex flex-col gap-4">
 
           {/* Paged Attention */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-1.5 mb-1">
-                <Label className="text-xs text-muted-foreground">Paged Attention</Label>
-                <InfoTooltip text="vLLM-style paged KV cache. Reduces memory fragmentation by ~20-40%, enabling longer contexts and more concurrent users. Standard in vLLM, SGLang, and TensorRT-LLM." />
+                <Label className="text-xs text-muted-foreground">{t("config.pagedAttention")}</Label>
+                <InfoTooltip text={t("config.tip.pagedAttention")} />
               </div>
               <p className="text-[10px] text-muted-foreground/70">
-                Reduces KV cache overhead by ~25%
+                {t("config.pagedAttentionDesc")}
               </p>
             </div>
             <Switch
@@ -534,11 +554,11 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-1.5 mb-1">
-                <Label className="text-xs text-muted-foreground">Speculative Decoding</Label>
-                <InfoTooltip text="Uses a small draft model or MTP heads to predict multiple tokens, then verifies with the main model in parallel. Can improve throughput 1.5-3×." />
+                <Label className="text-xs text-muted-foreground">{t("config.specDecoding")}</Label>
+                <InfoTooltip text={t("config.tip.specDecoding")} />
               </div>
               <p className="text-[10px] text-muted-foreground/70">
-                Draft / MTP model predicts, main model verifies
+                {t("config.specDecodingDesc")}
               </p>
             </div>
             <Switch
@@ -562,7 +582,7 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                     }`}
                     onClick={() => update({ specMode: "standard" })}
                   >
-                    Standard
+                    {t("config.standard")}
                   </button>
                   <button
                     type="button"
@@ -573,7 +593,7 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                     }`}
                     onClick={() => update({ specMode: "mtp" })}
                   >
-                    MTP Mode
+                    {t("config.mtpMode")}
                   </button>
                 </div>
               )}
@@ -582,8 +602,8 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                 <>
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-1.5">
-                      <Label className="text-xs text-muted-foreground">Draft Model Size</Label>
-                      <InfoTooltip text="Size of the draft model in billions of parameters. Smaller = faster drafting but lower acceptance rate. Common choices: 0.5B-1.5B for 7B+ main models." />
+                      <Label className="text-xs text-muted-foreground">{t("config.draftModelSize")}</Label>
+                      <InfoTooltip text={t("config.tip.draftModelSize")} />
                     </div>
                     <SliderWithInput
                       min={0.1}
@@ -598,8 +618,8 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-1.5">
-                      <Label className="text-xs text-muted-foreground">Draft Tokens per Step</Label>
-                      <InfoTooltip text="Number of tokens the draft model generates before verification. More tokens = higher potential speedup but lower acceptance rate. Typical: 4-8 tokens." />
+                      <Label className="text-xs text-muted-foreground">{t("config.draftTokens")}</Label>
+                      <InfoTooltip text={t("config.tip.draftTokens")} />
                     </div>
                     <SliderWithInput
                       min={2}
@@ -608,13 +628,15 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                       value={config.specNumDraftTokens}
                       onValueChange={(v) => update({ specNumDraftTokens: v })}
                       format={(v) => `${v}`}
-                      unit=" tokens"
+                      unit={t("config.unitTokens")}
                       markers={[2, 4, 8, 12, 16]}
                     />
                   </div>
                   <p className="text-[10px] text-primary/80 leading-relaxed">
-                    Draft model adds ~{((config.specDraftModelSize * 1e9 * (config.quant.bitsPerWeight / 8)) / 1024 ** 3).toFixed(2)} GB VRAM. 
-                    Estimated speedup: {(1 + (config.specNumDraftTokens * 0.6) / 2).toFixed(1)}× at ~60% acceptance rate.
+                    {t("config.specResult", {
+                      gb: ((config.specDraftModelSize * 1e9 * (config.quant.bitsPerWeight / 8)) / 1024 ** 3).toFixed(2),
+                      speedup: (1 + (config.specNumDraftTokens * 0.6) / 2).toFixed(1),
+                    })}
                   </p>
                 </>
               )}
@@ -623,9 +645,8 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                 <div className="space-y-2">
                   <div className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
                     <p className="text-[10px] text-cyan-400 leading-relaxed">
-                      <span className="font-semibold">MTP (Multi-Token Prediction):</span> Built-in speculative decoding
-                      using the model's native MTP heads. No separate draft model needed — adds only ~0.3 GB VRAM
-                      for the MTP heads. Compatible with DeepSeek V3 and R1 series. Estimated speedup: ~1.8×.
+                      <span className="font-semibold">{t("config.mtpNoteStrong")}</span>
+                      {t("config.mtpNote")}
                     </p>
                   </div>
                 </div>
@@ -639,11 +660,11 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Label className="text-xs text-muted-foreground">Expert Offloading</Label>
-                    <InfoTooltip text="Offloads some experts to CPU RAM, keeping only N experts in VRAM. Reduces VRAM usage at the cost of PCIe latency when offloaded experts are accessed. Useful for fitting large MoE models on limited VRAM." />
+                    <Label className="text-xs text-muted-foreground">{t("config.expertOffloading")}</Label>
+                    <InfoTooltip text={t("config.tip.expertOffloading")} />
                   </div>
                   <p className="text-[10px] text-muted-foreground/70">
-                    Keep select experts on GPU, offload rest to CPU
+                    {t("config.expertOffloadingDesc")}
                   </p>
                 </div>
                 <Switch
@@ -656,8 +677,8 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                 <div className="rounded-md border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-1.5">
-                      <Label className="text-xs text-muted-foreground">Experts on GPU</Label>
-                      <InfoTooltip text="Number of experts to keep in VRAM. The rest are offloaded to CPU. Active experts should always be on GPU for best performance." />
+                      <Label className="text-xs text-muted-foreground">{t("config.expertsOnGpu")}</Label>
+                      <InfoTooltip text={t("config.tip.expertsOnGpu")} />
                     </div>
                     <SliderWithInput
                       min={Math.min(config.model.numExpertsActive ?? 1, config.model.numExperts ?? 1)}
@@ -688,18 +709,17 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                         {config.numGpuExperts < recommendedMin && (
                           <div className="rounded-md border border-amber-500/20 bg-amber-500/5 px-2.5 py-2">
                             <p className="text-[10px] text-amber-400 leading-relaxed">
-                              <span className="font-semibold">💡 Suggestion:</span> Try keeping at least{" "}
-                              <span className="font-mono font-bold">{recommendedMin} experts</span> on GPU.
+                              <span className="font-semibold">{t("config.suggestionStrong")}</span>
+                              {t("config.suggestionKeep")}
+                              <span className="font-mono font-bold">
+                                {t("config.suggestionExperts", { n: recommendedMin })}
+                              </span>
+                              {t("config.suggestionOnGpu")}
                               {activeExperts > 1 && (
-                                <span>
-                                  {" "}Your model activates {activeExperts} experts per token, so fewer than this causes frequent PCIe transfers.
-                                </span>
+                                <span>{t("config.suggestionActiveMulti", { active: activeExperts })}</span>
                               )}
                               {activeExperts === 1 && (
-                                <span>
-                                  {" "}
-                                  Even with 1 active expert, keeping ~15% of experts on GPU provides load-balancing buffer when routing shifts.
-                                </span>
+                                <span>{t("config.suggestionActiveOne")}</span>
                               )}
                             </p>
                           </div>
@@ -709,10 +729,13 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                         {config.numGpuExperts < totalExperts && (
                           <div className="rounded-md border border-purple-500/20 bg-purple-500/5 px-2.5 py-2">
                             <p className="text-[10px] text-purple-300 leading-relaxed">
-                              <span className="font-semibold">VRAM saved:</span>{" "}
-                              ~{savedVram.toFixed(2)} GB on weights (expert FFN layers are ~70% of total params).
+                              <span className="font-semibold">{t("config.vramSavedStrong")}</span>
+                              {t("config.vramSaved", { gb: savedVram.toFixed(2) })}
                               <span className="text-muted-foreground ml-1">
-                                {" "}Offloaded experts: {(totalExperts - config.numGpuExperts)}/{totalExperts}
+                                {t("config.offloadedExperts", {
+                                  offloaded: totalExperts - config.numGpuExperts,
+                                  total: totalExperts,
+                                })}
                               </span>
                             </p>
                           </div>
@@ -722,10 +745,10 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                         {config.numGpuExperts >= recommendedMin && config.numGpuExperts <= recommendedMax && (
                           <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-2">
                             <p className="text-[10px] text-emerald-400 leading-relaxed">
-                              <span className="font-semibold">✅ Recommended range:</span>{" "}
-                              {recommendedMin}–{recommendedMax} experts on GPU balances VRAM savings with performance.
+                              <span className="font-semibold">{t("config.recommendedRangeStrong")}</span>
+                              {t("config.recommendedRange", { min: recommendedMin, max: recommendedMax })}
                               <span className="text-muted-foreground ml-1">
-                                {" "}Keeping {((config.numGpuExperts / totalExperts) * 100).toFixed(0)}% of experts on GPU.
+                                {t("config.keepingPct", { pct: ((config.numGpuExperts / totalExperts) * 100).toFixed(0) })}
                               </span>
                             </p>
                           </div>
@@ -734,13 +757,15 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                         {/* Explanation tooltip */}
                         <div className="rounded-md border border-border bg-muted/20 px-2.5 py-2">
                           <p className="text-[10px] text-muted-foreground leading-relaxed">
-                            <span className="font-semibold text-foreground">Why this matters:</span>{" "}
-                            In MoE models, only {activeExperts} of {totalExperts} experts compute per token,
-                            but all expert weights must be loaded into VRAM. Offloading experts to CPU saves{" "}
-                            ~{savedVram.toFixed(1)} GB but adds PCIe transfer latency when offloaded experts are needed.
+                            <span className="font-semibold text-foreground">{t("config.whyMattersStrong")}</span>
+                            {t("config.whyMatters", {
+                              active: activeExperts,
+                              total: totalExperts,
+                              gb: savedVram.toFixed(1),
+                            })}
                             {config.numGpuExperts < activeExperts && (
                               <span className="text-red-400 ml-1 font-semibold">
-                                ⚠️ WARNING: Fewer experts on GPU than active per token ({activeExperts}) — this will cause severe PCIe thrashing!
+                                {t("config.warningThrashing", { active: activeExperts })}
                               </span>
                             )}
                           </p>
@@ -752,14 +777,13 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
                   {config.numGpuExperts < (config.model.numExpertsActive ?? 1) && (
                     <div className="rounded-md border border-red-500/20 bg-red-500/5 px-2 py-1.5">
                       <p className="text-[10px] text-red-400 leading-relaxed">
-                        Critical: Keeping fewer experts on GPU than active per token ({config.model.numExpertsActive}) will cause
-                        frequent PCIe transfers, severely degrading performance. Increase "Experts on GPU" immediately.
+                        {t("config.critical", { active: config.model.numExpertsActive })}
                       </p>
                     </div>
                   )}
                   {config.numGpuExperts >= (config.model.numExperts ?? 1) && (
                     <p className="text-[10px] text-purple-300 leading-relaxed">
-                      All experts on GPU — no offloading needed. Reduce "Experts on GPU" to save VRAM.
+                      {t("config.allExpertsOnGpu")}
                     </p>
                   )}
                 </div>
@@ -771,7 +795,7 @@ export default function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           {config.pagedAttention && (
             <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
               <p className="text-[10px] text-emerald-400 leading-relaxed">
-                Paged attention enabled: KV cache memory reduced by ~25%. This is the default for vLLM, SGLang, and TensorRT-LLM.
+                {t("config.pagedEnabled")}
               </p>
             </div>
           )}

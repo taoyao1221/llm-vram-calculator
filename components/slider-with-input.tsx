@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 interface SliderWithInputProps {
   min: number;
@@ -29,6 +30,7 @@ export function SliderWithInput({
   className,
   markers,
 }: SliderWithInputProps) {
+  const { t } = useI18n();
   const [inputVal, setInputVal] = useState<string>("");
   const [editing, setEditing] = useState(false);
 
@@ -94,7 +96,7 @@ export function SliderWithInput({
                 setEditing(true);
                 setInputVal(displayStr);
               }}
-              title="Click to type a value"
+              title={t("select.typeValue")}
               className={cn(
                 "h-7 min-w-[4.5rem] rounded-md border border-primary/30 bg-primary/10 px-2 text-xs font-mono text-primary",
                 "hover:border-primary hover:bg-primary/20 transition-colors text-right cursor-text"

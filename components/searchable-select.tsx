@@ -4,6 +4,7 @@ import * as React from "react";
 import { useState, useRef, useEffect } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export interface SearchableOption {
   value: string;
@@ -32,14 +33,17 @@ export function SearchableSelect({
   options,
   value,
   onValueChange,
-  placeholder = "Select...",
-  searchPlaceholder = "Search...",
+  placeholder,
+  searchPlaceholder,
   className,
   triggerClassName,
   disabled,
   maxHeight = 320,
   getGroup,
 }: SearchableSelectProps) {
+  const { t } = useI18n();
+  const effectivePlaceholder = placeholder ?? t("select.defaultPlaceholder");
+  const effectiveSearchPlaceholder = searchPlaceholder ?? t("select.defaultSearch");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -157,7 +161,7 @@ export function SearchableSelect({
               {selected.badge && <span className="flex-shrink-0">{selected.badge}</span>}
             </span>
           ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
+            <span className="text-muted-foreground">{effectivePlaceholder}</span>
           )}
         </span>
         <ChevronDown
@@ -187,7 +191,7 @@ export function SearchableSelect({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={searchPlaceholder}
+              placeholder={effectiveSearchPlaceholder}
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground text-foreground"
             />
             {query && (
@@ -205,7 +209,7 @@ export function SearchableSelect({
           <div ref={listRef} className="overflow-y-auto p-1 flex-1">
             {filtered.length === 0 ? (
               <p className="text-center text-xs text-muted-foreground py-6">
-                No results for &quot;{query}&quot;
+                {t("select.noResults", { q: query })}
               </p>
             ) : grouped ? (
               Array.from(grouped.entries()).map(([group, opts]) => (
@@ -226,8 +230,8 @@ export function SearchableSelect({
           {filtered.length > 0 && (
             <div className="px-3 py-1.5 border-t border-border bg-muted/20">
               <p className="text-[10px] text-muted-foreground">
-                {filtered.length} result{filtered.length !== 1 ? "s" : ""}
-                {query && ` for "${query}"`}
+                {t("select.resultCount", { n: filtered.length })}
+                {query && t("select.resultCountFor", { q: query })}
               </p>
             </div>
           )}

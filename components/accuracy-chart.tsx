@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, CheckCircle2, Info, Scale } from "lucide-react";
 import type { CalcConfig } from "@/components/config-panel";
+import { useI18n } from "@/lib/i18n";
 
 interface AccuracyChartProps {
   config: CalcConfig;
@@ -263,6 +264,7 @@ function getSeverityBg(delta: number): string {
 }
 
 export default function AccuracyChart({ config }: AccuracyChartProps) {
+  const { t, tc } = useI18n();
   const { model, quant } = config;
   const [showDetails, setShowDetails] = useState(false);
 
@@ -318,12 +320,12 @@ export default function AccuracyChart({ config }: AccuracyChartProps) {
         <div className="flex items-center gap-2">
           <Scale className="w-4 h-4 text-primary" />
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Quantization Accuracy Impact
+            {t("accuracy.title")}
           </p>
         </div>
         {isQatOptimized && (
           <Badge variant="outline" className="text-[9px] border-cyan-500/30 text-cyan-400 bg-cyan-500/10">
-            QAT-optimized family
+            {t("accuracy.qatBadge")}
           </Badge>
         )}
       </div>
@@ -333,21 +335,20 @@ export default function AccuracyChart({ config }: AccuracyChartProps) {
         <div className="flex items-start gap-3">
           <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
           <div className="text-xs text-muted-foreground leading-relaxed">
-            <span className="text-foreground font-medium">Estimated MMLU-Pro point drop</span> vs BF16 baseline.
+            <span className="text-foreground font-medium">{t("accuracy.summaryStrong")}</span>
+            {t("accuracy.summarySuffix")}
             {isQatOptimized ? (
               <span>
-                {" "}
-                <strong className="text-cyan-400">{model.name}</strong> was trained with Quantization-Aware Training (QAT),
-                preserving ~70% more accuracy at Q4 compared to standard post-training quantization (PTQ).
-                Typical PTQ Q4_K_M loses ~5-6 pts; QAT version loses only ~2 pts.
+                {t("accuracy.summaryQat1")}
+                <strong className="text-cyan-400">{model.name}</strong>
+                {t("accuracy.summaryQat2")}
               </span>
             ) : (
               <span>
-                Larger models ({model.params}B) tolerate quantization better than smaller ones.
+                {t("accuracy.summaryDense1", { params: model.params })}
                 {model.numExperts && (
                   <>
-                    {" "}
-                    MoE variant: {model.activeParams}B active params.
+                    {t("accuracy.summaryDenseMoe", { active: model.activeParams })}
                   </>
                 )}
               </span>
@@ -399,7 +400,7 @@ export default function AccuracyChart({ config }: AccuracyChartProps) {
                 {/* Delta */}
                 <div className="w-24 flex-shrink-0">
                   <span className={`text-[10px] font-mono font-bold ${getSeverityColor(d.delta)}`}>
-                    {isBaseline ? "baseline" : `${d.delta} pts`}
+                    {isBaseline ? t("accuracy.baseline") : t("accuracy.pts", { delta: d.delta })}
                   </span>
                 </div>
 
@@ -414,10 +415,12 @@ export default function AccuracyChart({ config }: AccuracyChartProps) {
 
         {/* VRAM legend */}
         <div className="mt-3 flex items-center gap-4 text-[10px] text-muted-foreground/60">
-          <span>Left = lower accuracy</span>
-          <span>Bar width ∝ accuracy loss</span>
+          <span>{t("accuracy.legendLeft")}</span>
+          <span>{t("accuracy.legendBar")}</span>
           <span>
-            Weights: <span className="font-mono text-foreground">{baselineVram.toFixed(1)} GB</span> (BF16)
+            {t("accuracy.legendWeights1")}
+            <span className="font-mono text-foreground">{baselineVram.toFixed(1)} GB</span>
+            {t("accuracy.legendWeights2")}
           </span>
         </div>
       </div>
@@ -429,7 +432,8 @@ export default function AccuracyChart({ config }: AccuracyChartProps) {
           onClick={() => setShowDetails(!showDetails)}
           className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
         >
-          {showDetails ? "Hide" : "Show"} detailed accuracy notes
+          {showDetails ? t("accuracy.hideDetails") : t("accuracy.showDetails")}
+          {t("accuracy.detailsSuffix")}
           <span className={`transition-transform ${showDetails ? "rotate-180" : ""}`}>▾</span>
         </button>
 
@@ -440,7 +444,7 @@ export default function AccuracyChart({ config }: AccuracyChartProps) {
                 <span className="font-mono text-muted-foreground w-20 flex-shrink-0">
                   {d.quant.label.split("(")[0].trim()}
                 </span>
-                <span className="text-muted-foreground/70 leading-relaxed">{d.note}</span>
+                <span className="text-muted-foreground/70 leading-relaxed">{tc(d.note ?? "")}</span>
               </div>
             ))}
           </div>
@@ -452,15 +456,15 @@ export default function AccuracyChart({ config }: AccuracyChartProps) {
         <div className={`mx-4 mb-3 rounded-md border p-2.5 flex items-start gap-2 ${getSeverityBg(currentData.delta)}`}>
           <AlertTriangle className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${getSeverityColor(currentData.delta)}`} />
           <div className="text-[10px] leading-relaxed">
-            <span className="font-semibold text-foreground">Currently selected:</span>{" "}
-            {quant.label} — estimated{" "}
+            <span className="font-semibold text-foreground">{t("accuracy.currentSelected")}</span>{" "}
+            {quant.label}{t("accuracy.currentEstimated")}
             <span className={`font-mono font-bold ${getSeverityColor(currentData.delta)}`}>
-              {currentData.delta === 0 ? "no accuracy loss" : `${Math.abs(currentData.delta)}-point drop`}
-            </span>{" "}
-            on MMLU-Pro vs BF16 baseline.
+              {currentData.delta === 0 ? t("accuracy.currentNoLoss") : t("accuracy.currentDrop", { delta: Math.abs(currentData.delta) })}
+            </span>
+            {t("accuracy.currentSuffix")}
             {currentData.weightVram < baselineVram * 0.5 && (
               <span className="text-emerald-400 ml-1">
-                · Saves {(baselineVram - currentData.weightVram).toFixed(1)} GB VRAM on weights
+                {t("accuracy.currentSaves", { gb: (baselineVram - currentData.weightVram).toFixed(1) })}
               </span>
             )}
           </div>

@@ -10,6 +10,7 @@ import {
   type GpuSpec,
 } from "@/lib/llm-data";
 import type { CalcConfig } from "@/components/config-panel";
+import { useI18n } from "@/lib/i18n";
 import { SearchableSelect, type SearchableOption } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ const TIER_COLORS: Record<string, string> = {
 const NUM_GPUS_OPTIONS = [1, 2, 4, 8, 16, 32, 64];
 
 export default function ComparePanel({ baseConfig }: ComparePanelProps) {
+  const { t, tn } = useI18n();
   const [providerFilter, setProviderFilter] = useState("all");
   const [tierFilter, setTierFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("tps");
@@ -52,20 +54,20 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
   );
 
   const providerOptions: SearchableOption[] = [
-    { value: "all", label: "All Providers" },
+    { value: "all", label: t("compare.allProviders") },
     ...providers.map((p) => ({ value: p, label: p })),
   ];
 
   const tierOptions: SearchableOption[] = [
-    { value: "all", label: "All Tiers" },
-    { value: "consumer", label: "Consumer / Gaming" },
-    { value: "prosumer", label: "Pro / Workstation" },
-    { value: "datacenter", label: "Datacenter / Cloud" },
+    { value: "all", label: t("compare.allTiers") },
+    { value: "consumer", label: t("compare.tierConsumer") },
+    { value: "prosumer", label: t("compare.tierProsumer") },
+    { value: "datacenter", label: t("compare.tierDatacenter") },
   ];
 
   const numGpusOptions: SearchableOption[] = NUM_GPUS_OPTIONS.map((n) => ({
     value: String(n),
-    label: `${n}× GPU${n > 1 ? "s" : ""}`,
+    label: tn("common.gpuCount", n),
   }));
 
   const results: GpuResult[] = useMemo(() => {
@@ -148,37 +150,37 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
       {/* ── Controls ─────────────────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card p-4 flex flex-wrap gap-4 items-end">
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">Provider</Label>
+          <Label className="text-xs text-muted-foreground">{t("compare.provider")}</Label>
           <SearchableSelect
             options={providerOptions}
             value={providerFilter}
             onValueChange={setProviderFilter}
-            searchPlaceholder="Search provider..."
+            searchPlaceholder={t("compare.searchProvider")}
             triggerClassName="w-40"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">Tier</Label>
+          <Label className="text-xs text-muted-foreground">{t("compare.tier")}</Label>
           <SearchableSelect
             options={tierOptions}
             value={tierFilter}
             onValueChange={setTierFilter}
-            searchPlaceholder="Search tier..."
+            searchPlaceholder={t("compare.searchTier")}
             triggerClassName="w-44"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">GPUs per node</Label>
+          <Label className="text-xs text-muted-foreground">{t("compare.gpusPerNode")}</Label>
           <SearchableSelect
             options={numGpusOptions}
             value={String(numGpus)}
             onValueChange={(v) => setNumGpus(Number(v))}
-            searchPlaceholder="Select GPU count..."
+            searchPlaceholder={t("compare.selectGpuCount")}
             triggerClassName="w-32"
           />
         </div>
         <div className="ml-auto text-right">
-          <p className="text-xs text-muted-foreground">Comparing for</p>
+          <p className="text-xs text-muted-foreground">{t("compare.comparingFor")}</p>
           <div className="flex items-center gap-1.5 justify-end">
             <p className="text-sm font-semibold text-foreground">{baseConfig.model.name}</p>
             {isMoE && (
@@ -188,11 +190,18 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
             )}
           </div>
           <p className="text-[10px] text-muted-foreground">
-            {baseConfig.quant.label} · {(baseConfig.contextLen / 1000).toFixed(0)}K ctx · {baseConfig.concurrentUsers} user{baseConfig.concurrentUsers > 1 ? "s" : ""}
+            {t("compare.comparingSub", {
+              quant: baseConfig.quant.label,
+              ctx: (baseConfig.contextLen / 1000).toFixed(0),
+              users: tn("common.userCount", baseConfig.concurrentUsers),
+            })}
           </p>
           {isMoE && (
             <p className="text-[10px] text-primary mt-0.5">
-              {baseConfig.model.activeParams}B active / {baseConfig.model.params}B total
+              {t("compare.moeActiveTotal", {
+                active: baseConfig.model.activeParams,
+                total: baseConfig.model.params,
+              })}
             </p>
           )}
         </div>
@@ -203,10 +212,11 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-start gap-2.5">
           <Layers className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <span className="text-foreground font-semibold">MoE GPU comparison:</span>{" "}
-            VRAM requirements are based on total params ({baseConfig.model.params}B — all experts must fit).
-            TTFT and Tok/s are based on active params ({baseConfig.model.activeParams}B).
-            This is why MoE models need more VRAM but run faster than equivalent-sized dense models.
+            <span className="text-foreground font-semibold">{t("compare.moeStrong")}</span>
+            {t("compare.moeNote", {
+              params: baseConfig.model.params,
+              active: baseConfig.model.activeParams,
+            })}
           </p>
         </div>
       )}
@@ -218,25 +228,25 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  GPU
+                  {t("compare.colGpu")}
                 </th>
                 <th
                   className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground cursor-pointer hover:text-foreground select-none"
                   onClick={() => handleSort("fitsWithN")}
                 >
                   <span className="flex items-center justify-end gap-1">
-                    Min GPUs <SortIcon col="fitsWithN" />
+                    {t("compare.colMinGpus")} <SortIcon col="fitsWithN" />
                   </span>
                 </th>
                 <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground hidden sm:table-cell">
-                  GPU VRAM
+                  {t("compare.colGpuVram")}
                 </th>
                 <th
                   className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground cursor-pointer hover:text-foreground select-none"
                   onClick={() => handleSort("ttftMs")}
                 >
                   <span className="flex items-center justify-end gap-1">
-                    TTFT <SortIcon col="ttftMs" />
+                    {t("compare.colTtft")} <SortIcon col="ttftMs" />
                   </span>
                 </th>
                 <th
@@ -244,7 +254,7 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
                   onClick={() => handleSort("tps")}
                 >
                   <span className="flex items-center justify-end gap-1">
-                    Tok/s (per user) <SortIcon col="tps" />
+                    {t("compare.colTpsPerUser")} <SortIcon col="tps" />
                   </span>
                 </th>
                 <th
@@ -252,11 +262,11 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
                   onClick={() => handleSort("totalTps")}
                 >
                   <span className="flex items-center justify-end gap-1">
-                    Total Tok/s <SortIcon col="totalTps" />
+                    {t("compare.colTotalTps")} <SortIcon col="totalTps" />
                   </span>
                 </th>
                 <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground hidden lg:table-cell">
-                  Mem BW
+                  {t("compare.colMemBw")}
                 </th>
               </tr>
             </thead>
@@ -294,7 +304,7 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
                               variant="outline"
                               className={`text-[9px] px-1 py-0 h-4 ${TIER_COLORS[r.gpu.tier]}`}
                             >
-                              {r.gpu.tier}
+                              {t(`tier.${r.gpu.tier}`)}
                             </Badge>
                             <span className="text-[10px] text-muted-foreground">
                               {r.gpu.provider}
@@ -413,10 +423,15 @@ export default function ComparePanel({ baseConfig }: ComparePanelProps) {
 
         <div className="px-4 py-2.5 border-t border-border bg-muted/10 flex items-center justify-between gap-4 flex-wrap">
           <p className="text-[10px] text-muted-foreground">
-            {sorted.filter((r) => r.fitsWithN <= numGpus).length} of {sorted.length} GPUs can fit this model with {numGpus}× GPU{numGpus > 1 ? "s" : ""}. Dimmed rows need more GPUs.
+            {t("compare.footerFit", {
+              fits: sorted.filter((r) => r.fitsWithN <= numGpus).length,
+              total: sorted.length,
+              n: numGpus,
+              plural: numGpus > 1 ? "s" : "",
+            })}
           </p>
           <p className="text-[10px] text-muted-foreground">
-            Click column headers to sort. <Award className="w-3 h-3 text-amber-400 inline mb-0.5" /> = best in category.
+            {t("compare.footerSort")} <Award className="w-3 h-3 text-amber-400 inline mb-0.5" />
           </p>
         </div>
       </div>
