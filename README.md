@@ -135,6 +135,7 @@ tps = eff_bandwidth / (active_params × bytes_per_weight / gpus) / users
 - **Intel:** Gaudi 2/3
 - **Google:** TPU v4/v5e/v5p/v6e
 - **Qualcomm:** Cloud AI 100 Ultra
+- **Huawei:** Ascend 910B, 910C, 950PR, 950DT
 
 ## Project Structure
 

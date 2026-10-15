@@ -107,6 +107,16 @@ export const GPU_LIST: GpuSpec[] = [
   { id: "tpu_v5e",       name: "TPU v5e",               provider: "Google", vramGb: 16,  memoryBandwidthGBs: 819,  tflops16: 197,   nvlinkBandwidthGBs: 400,  tier: "datacenter", releaseYear: 2023, notes: "HBM per chip" },
   { id: "tpu_v5p",       name: "TPU v5p",               provider: "Google", vramGb: 95,  memoryBandwidthGBs: 2765, tflops16: 459,   nvlinkBandwidthGBs: 900,  tier: "datacenter", releaseYear: 2023, notes: "HBM per chip" },
   { id: "tpu_v6e",       name: "TPU v6e (Trillium)",    provider: "Google", vramGb: 32,  memoryBandwidthGBs: 1638, tflops16: 918,   nvlinkBandwidthGBs: 800,  tier: "datacenter", releaseYear: 2024, notes: "HBM per chip" },
+  // ── Huawei Ascend ─────────────────────────────────────────────────────────
+  { id: "ascend_910b1",     name: "Ascend 910B1 64 GB",   provider: "Huawei", vramGb: 64,  memoryBandwidthGBs: 1600, tflops16: 414,  nvlinkBandwidthGBs: 392,  tier: "datacenter", releaseYear: 2023},
+  { id: "ascend_910b2",     name: "Ascend 910B2 64 GB",   provider: "Huawei", vramGb: 64,  memoryBandwidthGBs: 1600, tflops16: 376,  nvlinkBandwidthGBs: 392,  tier: "datacenter", releaseYear: 2023},
+  { id: "ascend_910b3",     name: "Ascend 910B3 64 GB",   provider: "Huawei", vramGb: 64,  memoryBandwidthGBs: 1600, tflops16: 313,  nvlinkBandwidthGBs: 392,  tier: "datacenter", releaseYear: 2023},
+  { id: "ascend_910b4",     name: "Ascend 910B4 32 GB",   provider: "Huawei", vramGb: 32,  memoryBandwidthGBs: 800,  tflops16: 280,  nvlinkBandwidthGBs: 392,  tier: "datacenter", releaseYear: 2023},
+  { id: "ascend_910c",      name: "Ascend 910C 128 GB",   provider: "Huawei", vramGb: 128, memoryBandwidthGBs: 3200, tflops16: 800,  nvlinkBandwidthGBs: 784,  tier: "datacenter", releaseYear: 2025},
+  { id: "ascend_950pr_128", name: "Ascend 950PR 128 GB",  provider: "Huawei", vramGb: 128, memoryBandwidthGBs: 1600, tflops16: 486,  nvlinkBandwidthGBs: 2016, tier: "datacenter", releaseYear: 2026},
+  { id: "ascend_950pr_112", name: "Ascend 950PR 112 GB", provider: "Huawei", vramGb: 112, memoryBandwidthGBs: 1400, tflops16: 486, nvlinkBandwidthGBs: 2016, tier: "datacenter", releaseYear: 2026},
+  { id: "ascend_950dt_96",  name: "Ascend 950DT 96 GB",   provider: "Huawei", vramGb: 96,  memoryBandwidthGBs: 4000, tflops16: 547,  nvlinkBandwidthGBs: 2016, tier: "datacenter", releaseYear: 2026},
+  { id: "ascend_950dt_144", name: "Ascend 950DT 144 GB",  provider: "Huawei", vramGb: 144, memoryBandwidthGBs: 4000, tflops16: 547,  nvlinkBandwidthGBs: 2016, tier: "datacenter", releaseYear: 2026},
 ];
 
 export const GPU_PROVIDERS = [...new Set(GPU_LIST.map((g) => g.provider))].sort();
